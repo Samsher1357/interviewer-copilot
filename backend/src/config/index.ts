@@ -9,6 +9,16 @@ export const config = {
   googleApiKey: process.env.GOOGLE_API_KEY || '',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   nodeEnv: process.env.NODE_ENV || 'development',
+  database: {
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    database: process.env.DB_NAME || 'interviewer_db',
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || '',
+    max: parseInt(process.env.DB_POOL_MAX || '10'),
+    idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT || '30000'),
+    connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT || '2000'),
+  },
 };
 
 export function validateConfig() {

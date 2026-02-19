@@ -16,6 +16,8 @@ export interface Utterance {
 
 export interface InterviewContext {
   candidateName: string;
+  candidateEmail: string;
+  candidatePhone?: string;
   role: string;
   company: string;
   requiredSkills: string[];

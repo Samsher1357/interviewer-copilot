@@ -14,6 +14,10 @@
     "install:all": "npm install && npm install --workspaces"
   },
   "devDependencies": {
+    "@types/pg": "^8.16.0",
     "concurrently": "^8.2.2"
+  },
+  "dependencies": {
+    "pg": "^8.18.0"
   }
 }
