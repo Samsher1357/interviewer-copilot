@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useInterviewStore } from '@/lib/store';
 import { useCopilotEngine } from '@/lib/hooks/useCopilotEngine';
 import { useSocketAnalysis } from '@/lib/hooks/useSocketAnalysis';
+import { useInterviewData } from '@/lib/hooks/useInterviewData';
 import { AnalysisPanel } from './AnalysisPanel';
 import { QuestionPanel } from './QuestionPanel';
 import { RatingPanel } from './RatingPanel';
@@ -18,9 +19,11 @@ export function InterviewScreen() {
     isAnalyzing,
     isGeneratingQuestions,
     isGeneratingRating,
+    analysisText,
   } = useInterviewStore();
 
   const { isConnected: socketConnected } = useSocketAnalysis();
+  const { sendAnalysis, completeInterview, interviewId } = useInterviewData();
 
   const {
     isConnected: deepgramConnected,
@@ -40,6 +43,13 @@ export function InterviewScreen() {
   // Refs for auto-scroll - use span inside div for proper width measurement
   const questionContainerRef = useRef<HTMLDivElement>(null);
   const answerContainerRef = useRef<HTMLDivElement>(null);
+
+  // Send analysis text when it's complete
+  useEffect(() => {
+    if (analysisText && !isAnalyzing) {
+      sendAnalysis(analysisText);
+    }
+  }, [analysisText, isAnalyzing, sendAnalysis]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -92,6 +102,7 @@ export function InterviewScreen() {
 
   const confirmEndInterview = () => {
     setIsMicActive(false);
+    completeInterview(); // Save interview data before ending
     endInterview();
     setShowEndConfirm(false);
   };

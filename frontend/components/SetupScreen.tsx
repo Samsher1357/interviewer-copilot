@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { useInterviewStore } from '@/lib/store';
-import { Briefcase, User, Building2, Award, AlertCircle, Play, Sparkles } from 'lucide-react';
+import { Briefcase, User, Building2, Award, AlertCircle, Play, Sparkles, BarChart3, Mail, Phone, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
 
 export function SetupScreen() {
   const { setInterviewContext, setInterviewActive, setInterviewState } = useInterviewStore();
   
   const [candidateName, setCandidateName] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState('');
+  const [candidatePhone, setCandidatePhone] = useState('');
   const [role, setRole] = useState('');
   const [company, setCompany] = useState('');
   const [skills, setSkills] = useState('');
@@ -22,6 +25,12 @@ export function SetupScreen() {
       newErrors.candidateName = 'Candidate name is required';
     } else if (candidateName.trim().length < 2) {
       newErrors.candidateName = 'Name must be at least 2 characters';
+    }
+
+    if (!candidateEmail.trim()) {
+      newErrors.candidateEmail = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(candidateEmail.trim())) {
+      newErrors.candidateEmail = 'Invalid email format';
     }
 
     if (!role.trim()) {
@@ -60,6 +69,8 @@ export function SetupScreen() {
 
     setInterviewContext({
       candidateName: candidateName.trim(),
+      candidateEmail: candidateEmail.trim(),
+      candidatePhone: candidatePhone.trim() || undefined,
       role: role.trim(),
       company: company.trim(),
       requiredSkills,
@@ -90,6 +101,24 @@ export function SetupScreen() {
           </div>
           <h1 className="text-3xl font-bold text-white mb-2">Interview Copilot</h1>
           <p className="text-gray-400">Configure the interview details to get started</p>
+          
+          {/* Navigation to Comparison Dashboard */}
+          <div className="mt-4 flex gap-3 justify-center">
+            <Link 
+              href="/comparison"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors border border-gray-600"
+            >
+              <BarChart3 className="w-4 h-4" />
+              Candidate Comparison
+            </Link>
+            <Link 
+              href="/analytics"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors border border-gray-600"
+            >
+              <TrendingUp className="w-4 h-4" />
+              Analytics Dashboard
+            </Link>
+          </div>
         </div>
 
         {/* Form Card */}
@@ -117,6 +146,46 @@ export function SetupScreen() {
                   {errors.candidateName}
                 </p>
               )}
+            </div>
+
+            {/* Email & Phone Row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+                  <Mail className="w-4 h-4 text-green-400" />
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={candidateEmail}
+                  onChange={(e) => {
+                    setCandidateEmail(e.target.value);
+                    if (errors.candidateEmail) setErrors({ ...errors, candidateEmail: '' });
+                  }}
+                  className={inputClasses(!!errors.candidateEmail)}
+                  placeholder="john@example.com"
+                />
+                {errors.candidateEmail && (
+                  <p className="mt-1.5 text-sm text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.candidateEmail}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+                  <Phone className="w-4 h-4 text-purple-400" />
+                  Phone <span className="text-gray-500">(optional)</span>
+                </label>
+                <input
+                  type="tel"
+                  value={candidatePhone}
+                  onChange={(e) => setCandidatePhone(e.target.value)}
+                  className={inputClasses(false)}
+                  placeholder="+1-555-0123"
+                />
+              </div>
             </div>
 
             {/* Role & Company Row */}

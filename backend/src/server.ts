@@ -4,11 +4,18 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import { config, validateConfig } from './config';
 import deepgramRouter from './routes/deepgram';
+import candidatesRouter from './routes/candidates';
+import mockInterviewRouter from './routes/mockInterview';
+import analyticsRouter from './routes/analytics';
 import { initializeSocketIO } from './socket/interviewerSocketHandler';
+import { database } from './services/database';
 
 async function startServer() {
   try {
     validateConfig();
+
+    // Connect to database
+    await database.connect();
 
     const app = express();
     const httpServer = createServer(app);
@@ -25,6 +32,9 @@ async function startServer() {
     });
 
     app.use('/api', deepgramRouter);
+    app.use('/api/candidates', candidatesRouter);
+    app.use('/api/mock', mockInterviewRouter);
+    app.use('/api/analytics', analyticsRouter);
 
     const io = new Server(httpServer, {
       cors: {
@@ -42,6 +52,7 @@ async function startServer() {
       console.log(`✅ Server running on port ${config.port}`);
       console.log(`✅ Frontend URL: ${config.frontendUrl}`);
       console.log(`✅ Environment: ${config.nodeEnv}`);
+      console.log(`✅ Database connected`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

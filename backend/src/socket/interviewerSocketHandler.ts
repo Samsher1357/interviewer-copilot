@@ -1,5 +1,6 @@
 import { Server, Socket } from 'socket.io';
 import { langchainService } from '../services/langchainService';
+import { interviewDataService } from '../services/interviewDataService';
 import type { AnalysisRequest, QuestionRequest, RatingRequest } from '../types';
 
 interface ActiveGeneration {
@@ -7,12 +8,125 @@ interface ActiveGeneration {
   active: boolean;
 }
 
+interface InterviewSession {
+  interviewId: number;
+  startTime: number;
+  ratings: Array<{ score: number; competency: string }>;
+  analysisTexts: string[];
+}
+
 export function initializeSocketIO(io: Server) {
   const activeGenerations = new Map<string, Map<string, ActiveGeneration>>();
+  const interviewSessions = new Map<string, InterviewSession>();
 
   io.on('connection', (socket: Socket) => {
     console.log(`Socket connected: ${socket.id}`);
     activeGenerations.set(socket.id, new Map());
+
+    // Start interview session
+    socket.on('interview:start', async (data: {
+      candidateName: string;
+      candidateEmail: string;
+      candidatePhone?: string;
+      role: string;
+      experienceYears?: number;
+      interviewerName: string;
+      interviewerEmail: string;
+      round: string;
+    }) => {
+      try {
+        const interviewId = await interviewDataService.startInterview(data);
+        
+        interviewSessions.set(socket.id, {
+          interviewId,
+          startTime: Date.now(),
+          ratings: [],
+          analysisTexts: [],
+        });
+
+        socket.emit('interview:started', { interviewId });
+        console.log(`Interview started: ${interviewId} for ${data.candidateName}`);
+      } catch (error: any) {
+        console.error('Error starting interview:', error);
+        socket.emit('interview:error', { error: error.message });
+      }
+    });
+
+    // Save rating
+    socket.on('interview:rating', async (data: {
+      score: number;
+      competency: string;
+      notes?: string;
+    }) => {
+      const session = interviewSessions.get(socket.id);
+      if (session) {
+        session.ratings.push({
+          score: data.score,
+          competency: data.competency,
+        });
+      }
+    });
+
+    // Save analysis text
+    socket.on('interview:analysis', async (data: { analysisText: string }) => {
+      const session = interviewSessions.get(socket.id);
+      if (session && data.analysisText) {
+        session.analysisTexts.push(data.analysisText);
+      }
+    });
+
+    // Complete interview
+    socket.on('interview:complete', async (data?: {
+      finalNotes?: string;
+    }) => {
+      const session = interviewSessions.get(socket.id);
+      if (!session) {
+        socket.emit('interview:error', { error: 'No active interview session' });
+        return;
+      }
+
+      try {
+        const durationMinutes = Math.round((Date.now() - session.startTime) / 60000);
+
+        // Calculate scores
+        const scores = interviewDataService.calculateAverageScores(session.ratings);
+        
+        // Extract insights
+        const insights = interviewDataService.extractInsights(session.analysisTexts);
+        
+        // Generate recommendation
+        const recommendation = interviewDataService.generateRecommendation(scores.overall_score);
+
+        // Save to database
+        await interviewDataService.completeInterview(
+          session.interviewId,
+          {
+            ...scores,
+            strengths: insights.strengths,
+            weaknesses: insights.weaknesses,
+            recommendation,
+          },
+          durationMinutes
+        );
+
+        // Update notes if provided
+        if (data?.finalNotes) {
+          await interviewDataService.updateInterviewNotes(session.interviewId, data.finalNotes);
+        }
+
+        socket.emit('interview:completed', { 
+          interviewId: session.interviewId,
+          scores,
+          recommendation,
+        });
+
+        console.log(`Interview completed: ${session.interviewId}`);
+        interviewSessions.delete(socket.id);
+      } catch (error: any) {
+        console.error('Error completing interview:', error);
+        socket.emit('interview:error', { error: error.message });
+      }
+    });
 
     // Combined analysis - single LLM call for all three outputs
     socket.on('analyze:batch', async (data: {
