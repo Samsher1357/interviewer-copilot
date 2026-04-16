@@ -80,6 +80,8 @@ export class PrismaStorageService {
       },
       create: {
         ...sessionData,
+        candidateEmail: sessionData.candidateEmail ?? '',
+        candidatePhone: sessionData.candidatePhone ?? '',
         startTime: new Date(sessionData.startTime),
         endTime: sessionData.endTime ? new Date(sessionData.endTime) : null,
         
