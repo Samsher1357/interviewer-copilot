@@ -26,6 +26,7 @@ export function SetupScreen() {
   const [skills, setSkills] = useState('');
   const [experienceLevel, setExperienceLevel] = useState<'junior' | 'mid' | 'senior' | 'lead'>('mid');
   const [jobDescription, setJobDescription] = useState('');
+  const [presetQuestions, setPresetQuestions] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showTemplates, setShowTemplates] = useState(false);
 
@@ -229,6 +230,7 @@ export function SetupScreen() {
     setExperienceLevel(template.experienceLevel);
     setSkills(template.requiredSkills.join(', '));
     setJobDescription(template.jobDescription || '');
+    setPresetQuestions(template.presetQuestions || []);
   };
 
   const inputClasses = (hasError: boolean) => `
@@ -495,6 +497,24 @@ export function SetupScreen() {
               />
             </div>
 
+            {/* Preset Questions */}
+            {presetQuestions.length > 0 && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-400 mb-2 flex items-center gap-2">
+                  <Sparkles size={16} />
+                  Preset Questions ({presetQuestions.length})
+                </h3>
+                <ul className="space-y-2">
+                  {presetQuestions.map((question, index) => (
+                    <li key={index} className="text-sm text-gray-300 flex items-start gap-2">
+                      <span className="text-blue-400 mt-0.5">•</span>
+                      <span>{question}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-gray-500">These questions will be available during the interview</p>
+              </div>
+            )}
             {/* Resume Upload */}
             <div>
               <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">

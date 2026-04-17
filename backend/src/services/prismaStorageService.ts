@@ -356,7 +356,8 @@ export class PrismaStorageService {
 
     return templates.map((t: any) => ({
       ...t,
-      requiredSkills: JSON.parse(t.requiredSkills)
+      requiredSkills: JSON.parse(t.requiredSkills),
+      presetQuestions: JSON.parse(t.presetQuestions || '[]')
     }));
   }
 
@@ -369,7 +370,8 @@ export class PrismaStorageService {
 
     return {
       ...template,
-      requiredSkills: JSON.parse(template.requiredSkills)
+      requiredSkills: JSON.parse(template.requiredSkills),
+      presetQuestions: JSON.parse(template.presetQuestions || '[]')
     };
   }
 
@@ -379,19 +381,22 @@ export class PrismaStorageService {
     company?: string;
     experienceLevel: string;
     requiredSkills: string[];
+    presetQuestions?: string[];
     jobDescription?: string;
     isDefault?: boolean;
   }): Promise<any> {
     const template = await prisma.interviewTemplate.create({
       data: {
         ...data,
-        requiredSkills: JSON.stringify(data.requiredSkills)
+        requiredSkills: JSON.stringify(data.requiredSkills),
+        presetQuestions: JSON.stringify(data.presetQuestions || [])
       }
     });
 
     return {
       ...template,
-      requiredSkills: JSON.parse(template.requiredSkills)
+      requiredSkills: JSON.parse(template.requiredSkills),
+      presetQuestions: JSON.parse(template.presetQuestions || '[]')
     };
   }
 
@@ -401,12 +406,16 @@ export class PrismaStorageService {
     company?: string;
     experienceLevel: string;
     requiredSkills: string[];
+    presetQuestions?: string[];
     jobDescription?: string;
     isDefault?: boolean;
   }>): Promise<any> {
     const updateData: any = { ...data };
     if (data.requiredSkills) {
       updateData.requiredSkills = JSON.stringify(data.requiredSkills);
+    }
+    if (data.presetQuestions) {
+      updateData.presetQuestions = JSON.stringify(data.presetQuestions);
     }
 
     const template = await prisma.interviewTemplate.update({
@@ -416,7 +425,8 @@ export class PrismaStorageService {
 
     return {
       ...template,
-      requiredSkills: JSON.parse(template.requiredSkills)
+      requiredSkills: JSON.parse(template.requiredSkills),
+      presetQuestions: JSON.parse(template.presetQuestions || '[]')
     };
   }
 

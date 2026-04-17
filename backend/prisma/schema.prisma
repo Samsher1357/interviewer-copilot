@@ -110,6 +110,7 @@ model InterviewTemplate {
   experienceLevel String
   requiredSkills  String   // JSON array stored as string
   jobDescription  String?
+  presetQuestions String   @default("[]") // JSON array of preset questions
   isDefault       Boolean  @default(false)
   
   createdAt       DateTime @default(now())
