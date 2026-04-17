@@ -45,6 +45,7 @@ model InterviewSession {
   notes             String?
   
   // Relations
+  turns                    Turn[]
   competencyRatings        CompetencyRating[]
   sessionNotes             SessionNote[]
   sessionFeedback          SessionFeedback[]
@@ -57,6 +58,18 @@ model InterviewSession {
   @@index([startTime])
   @@index([interviewerRecommendation])
   @@index([aiRecommendation])
+}
+
+model Turn {
+  id        String   @id @default(uuid())
+  speaker   String   // 'interviewer' or 'candidate'
+  text      String
+  timestamp DateTime
+
+  sessionId String
+  session   InterviewSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
 }
 
 model CompetencyRating {
