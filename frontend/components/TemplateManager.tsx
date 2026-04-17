@@ -11,6 +11,7 @@ interface Template {
   experienceLevel: string;
   requiredSkills: string[];
   jobDescription?: string;
+  presetQuestions?: string[];
   isDefault: boolean;
 }
 
@@ -24,6 +25,7 @@ export default function TemplateManager({ onSelectTemplate, onClose }: TemplateM
   const [loading, setLoading] = useState(true);
   const [editingTemplate, setEditingTemplate] = useState<Partial<Template> | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [questionsText, setQuestionsText] = useState('');
 
   useEffect(() => {
     loadTemplates();
@@ -51,10 +53,18 @@ export default function TemplateManager({ onSelectTemplate, onClose }: TemplateM
       
       const method = editingTemplate.id ? 'PUT' : 'POST';
       
+      // Parse questions text into array before saving
+      const templateData = {
+        ...editingTemplate,
+        presetQuestions: typeof editingTemplate.presetQuestions === 'string'
+          ? (editingTemplate.presetQuestions as string).split('\n').map((q: string) => q.trim()).filter((q: string) => q.length > 0)
+          : editingTemplate.presetQuestions || []
+      };
+      
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingTemplate)
+        body: JSON.stringify(templateData)
       });
 
       if (res.ok) {
@@ -87,6 +97,7 @@ export default function TemplateManager({ onSelectTemplate, onClose }: TemplateM
       company: '',
       experienceLevel: 'mid',
       requiredSkills: [],
+      presetQuestions: [],
       jobDescription: '',
       isDefault: false
     });
@@ -212,6 +223,25 @@ export default function TemplateManager({ onSelectTemplate, onClose }: TemplateM
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Preset Questions (one per line)</label>
+                  <textarea
+                    value={typeof editingTemplate?.presetQuestions === 'string' 
+                      ? editingTemplate.presetQuestions 
+                      : editingTemplate?.presetQuestions?.join('\n') || ''}
+                    onChange={(e) => {
+                      setEditingTemplate({ 
+                        ...editingTemplate, 
+                        presetQuestions: e.target.value as any
+                      });
+                    }}
+                    rows={6}
+                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 text-white rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
+                    placeholder="Tell me about your experience with React&#10;How do you handle state management?&#10;Describe a challenging project you worked on"
+                  />
+                  <p className="mt-1 text-xs text-gray-500">Add preset interview questions, one per line. These will be available during the interview.</p>
+                </div>
+
                 <div className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -265,6 +295,19 @@ export default function TemplateManager({ onSelectTemplate, onClose }: TemplateM
                       {template.company && <p><span className="text-gray-500">Company:</span> {template.company}</p>}
                       <p><span className="text-gray-500">Level:</span> {template.experienceLevel}</p>
                       <p><span className="text-gray-500">Skills:</span> {template.requiredSkills.join(', ')}</p>
+                      {template.presetQuestions && template.presetQuestions.length > 0 && (
+                        <div className="mt-2 pt-2 border-t border-gray-700">
+                          <p className="text-gray-500 mb-1">Preset Questions ({template.presetQuestions.length}):</p>
+                          <ul className="list-disc list-inside space-y-1 text-gray-400 text-xs">
+                            {template.presetQuestions.slice(0, 3).map((q, i) => (
+                              <li key={i}>{q.length > 60 ? q.substring(0, 60) + '...' : q}</li>
+                            ))}
+                            {template.presetQuestions.length > 3 && (
+                              <li className="text-gray-500 italic">+{template.presetQuestions.length - 3} more questions</li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   </div>
 

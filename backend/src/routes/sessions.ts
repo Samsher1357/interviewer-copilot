@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prismaStorageService as storageService } from '../services/prismaStorageService';
 import { evaluationService } from '../services/evaluationService';
 import { pdfService } from '../services/pdfService';
+import { emailService } from '../services/emailService';
 import type { InterviewSession } from '../types';
 
 const router = Router();
@@ -109,6 +110,33 @@ router.get('/sessions/:id/feedback-pdf', async (req, res) => {
     
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Send feedback email
+router.post('/sessions/:id/send-email', async (req, res) => {
+  try {
+    const session = await storageService.getSession(req.params.id);
+    if (!session) {
+      return res.status(404).json({ error: 'Session not found' });
+    }
+    
+    const { email, name } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: 'Email address is required' });
+    }
+    
+    const matrix = evaluationService.getEvaluationMatrix(session.role, session.experienceLevel);
+    const result = await emailService.sendFeedbackEmail(session, matrix, email, name);
+    
+    if (result.success) {
+      res.json({ success: true, message: result.message });
+    } else {
+      res.status(500).json({ success: false, error: result.message });
+    }
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

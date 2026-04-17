@@ -13,11 +13,13 @@ export function SetupScreen() {
   const router = useRouter();
   
   const [candidateName, setCandidateName] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState('');
   const [role, setRole] = useState('');
   const [company, setCompany] = useState('');
   const [skills, setSkills] = useState('');
   const [experienceLevel, setExperienceLevel] = useState<'junior' | 'mid' | 'senior' | 'lead'>('mid');
   const [jobDescription, setJobDescription] = useState('');
+  const [presetQuestions, setPresetQuestions] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showTemplates, setShowTemplates] = useState(false);
 
@@ -73,6 +75,7 @@ export function SetupScreen() {
 
     setInterviewContext({
       candidateName: candidateName.trim(),
+      candidateEmail: candidateEmail.trim() || undefined,
       role: role.trim(),
       company: company.trim(),
       requiredSkills,
@@ -90,6 +93,7 @@ export function SetupScreen() {
     setExperienceLevel(template.experienceLevel);
     setSkills(template.requiredSkills.join(', '));
     setJobDescription(template.jobDescription || '');
+    setPresetQuestions(template.presetQuestions || []);
   };
 
   const inputClasses = (hasError: boolean) => `
@@ -147,28 +151,45 @@ export function SetupScreen() {
         {/* Form Card */}
         <div className="bg-gray-800/50 backdrop-blur rounded-2xl border border-gray-700/50 p-8 shadow-xl">
           <div className="space-y-5">
-            {/* Candidate Name */}
-            <div>
-              <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
-                <User className="w-4 h-4 text-blue-400" />
-                Candidate Name
-              </label>
-              <input
-                type="text"
-                value={candidateName}
-                onChange={(e) => {
-                  setCandidateName(e.target.value);
-                  if (errors.candidateName) setErrors({ ...errors, candidateName: '' });
-                }}
-                className={inputClasses(!!errors.candidateName)}
-                placeholder="John Doe"
-              />
-              {errors.candidateName && (
-                <p className="mt-1.5 text-sm text-red-400 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  {errors.candidateName}
-                </p>
-              )}
+            {/* Candidate Name & Email Row */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+                  <User className="w-4 h-4 text-blue-400" />
+                  Candidate Name
+                </label>
+                <input
+                  type="text"
+                  value={candidateName}
+                  onChange={(e) => {
+                    setCandidateName(e.target.value);
+                    if (errors.candidateName) setErrors({ ...errors, candidateName: '' });
+                  }}
+                  className={inputClasses(!!errors.candidateName)}
+                  placeholder="John Doe"
+                />
+                {errors.candidateName && (
+                  <p className="mt-1.5 text-sm text-red-400 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.candidateName}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 text-sm font-medium text-gray-300 mb-2">
+                  <User className="w-4 h-4 text-blue-400" />
+                  Email (Optional)
+                </label>
+                <input
+                  type="email"
+                  value={candidateEmail}
+                  onChange={(e) => setCandidateEmail(e.target.value)}
+                  className={inputClasses(false)}
+                  placeholder="john@example.com"
+                />
+                <p className="mt-1 text-xs text-gray-500">For sending feedback report</p>
+              </div>
             </div>
 
             {/* Role & Company Row */}
@@ -288,6 +309,25 @@ export function SetupScreen() {
                 placeholder="Brief job description or key responsibilities..."
               />
             </div>
+
+            {/* Preset Questions */}
+            {presetQuestions.length > 0 && (
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                <h3 className="text-sm font-semibold text-blue-400 mb-2 flex items-center gap-2">
+                  <Sparkles size={16} />
+                  Preset Questions ({presetQuestions.length})
+                </h3>
+                <ul className="space-y-2">
+                  {presetQuestions.map((question, index) => (
+                    <li key={index} className="text-sm text-gray-300 flex items-start gap-2">
+                      <span className="text-blue-400 mt-0.5">•</span>
+                      <span>{question}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-xs text-gray-500">These questions will be available during the interview</p>
+              </div>
+            )}
 
             {/* Start Button */}
             <button

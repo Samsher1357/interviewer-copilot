@@ -9,6 +9,8 @@ export const config = {
   googleApiKey: process.env.GOOGLE_API_KEY || '',
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
   nodeEnv: process.env.NODE_ENV || 'development',
+  sendgridApiKey: process.env.SENDGRID_API_KEY || '',
+  senderEmail: process.env.SENDER_EMAIL || 'noreply@interviewcopilot.com',
 };
 
 export function validateConfig() {
