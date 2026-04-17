@@ -12,8 +12,8 @@ datasource db {
 model InterviewSession {
   id                String   @id @default(uuid())
   candidateName     String
-  candidateEmail    String
-  candidatePhone    String
+  candidateEmail    String?
+  candidatePhone    String?
   resumeText        String?
   role              String
   company           String
