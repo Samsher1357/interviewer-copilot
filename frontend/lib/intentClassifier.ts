@@ -424,11 +424,12 @@ export interface AutoTriggerResult {
  *  2. No question on record → hold.
  *  3. Fewer than 8 words → hold.
  *  4. Ends mid-thought and silence < 3 s → hold.
- *  5. Looks complete AND ≥ 12 words → trigger.
+ *  5. Looks complete AND ≥ 12 words + 1.5 s silence → trigger.
  *  6. Very long (≥ 50 words) with ≥ 1.5 s silence → trigger.
- *  7. Substantial (≥ 15 words) with ≥ 1.8 s silence → trigger.
- *  8. Multiple pauses, ≥ 12 words, ≥ 1.5 s silence → trigger.
- *  9. Long silence (≥ 3 s) with ≥ 10 words → trigger.
+ *  7. Substantial (≥ 15 words) with ≥ 1.5 s silence → trigger.
+ *  8. Moderate (≥ 10 words) with ≥ 2 s silence → trigger.
+ *  9. Multiple pauses, ≥ 10 words, ≥ 1.5 s silence → trigger.
+ * 10. Long silence (≥ 2.5 s) with ≥ 8 words → trigger.
  */
 export function shouldAutoTrigger(
   accumulatedText: string,
@@ -481,7 +482,7 @@ export function shouldAutoTrigger(
 
   // Require both a completion signal AND meaningful silence (≥1.5 s) AND
   // enough words — a period ending a single sentence mid-answer must not fire.
-  if (looksComplete && wordCount >= 20 && silenceMs >= 1_500) {
+  if (looksComplete && wordCount >= 12 && silenceMs >= 1_500) {
     return {
       trigger: true,
       reason: "Complete answer detected",
@@ -489,7 +490,7 @@ export function shouldAutoTrigger(
     };
   }
 
-  if (wordCount >= 50 && silenceMs >= 2_000) {
+  if (wordCount >= 50 && silenceMs >= 1_500) {
     return {
       trigger: true,
       reason: "Long answer with pause",
@@ -497,7 +498,7 @@ export function shouldAutoTrigger(
     };
   }
 
-  if (silenceMs >= 1_500 && wordCount >= 20) {
+  if (silenceMs >= 1_500 && wordCount >= 15) {
     return {
       trigger: true,
       reason: `Extended silence (${silenceMs} ms) with ${wordCount} words`,
@@ -505,7 +506,16 @@ export function shouldAutoTrigger(
     };
   }
 
-  if (consecutiveSilentUtterances >= 2 && wordCount >= 12 && silenceMs >= 1_500) {
+  // Moderate answer with clear pause — covers typical 10-15 word interview answers
+  if (silenceMs >= 2_000 && wordCount >= 10) {
+    return {
+      trigger: true,
+      reason: `Moderate answer with silence (${wordCount} words, ${silenceMs} ms)`,
+      confidence: 0.75,
+    };
+  }
+
+  if (consecutiveSilentUtterances >= 2 && wordCount >= 10 && silenceMs >= 1_500) {
     return {
       trigger: true,
       reason: "Multiple pauses indicate completion",
@@ -513,7 +523,7 @@ export function shouldAutoTrigger(
     };
   }
 
-  if (silenceMs >= 3_000 && wordCount >= 10) {
+  if (silenceMs >= 2_500 && wordCount >= 8) {
     return {
       trigger: true,
       reason: `Long silence (${silenceMs} ms)`,

@@ -72,6 +72,39 @@ export interface CompetencyRating {
   source?: 'interviewer' | 'ai';
 }
 
+// ---------------------------------------------------------------------------
+// Structured Interview Co-Pilot Types
+// ---------------------------------------------------------------------------
+
+export type InterviewStage = 'Intro' | 'Basic' | 'Core' | 'Advanced' | 'Behavioral';
+
+export interface TopicProgress {
+  topic: string;
+  questionsAsked: number;
+  lastScore?: number;       // 1-5 from AI evaluation
+  depth: 'surface' | 'moderate' | 'deep';
+}
+
+export interface NextQuestionResponse {
+  question: string;
+  topic: string;
+  difficulty: 'Basic' | 'Intermediate' | 'Advanced';
+  rationale: string;
+  stage: InterviewStage;
+  followUpHint?: string;
+}
+
+// Stage question quotas (cumulative thresholds for auto-advance)
+export const STAGE_QUOTAS: Record<InterviewStage, number> = {
+  Intro: 2,
+  Basic: 7,
+  Core: 15,
+  Advanced: 20,
+  Behavioral: 25,
+};
+
+export const STAGE_ORDER: InterviewStage[] = ['Intro', 'Basic', 'Core', 'Advanced', 'Behavioral'];
+
 export interface InterviewSession {
   id: string;
   candidateName: string;

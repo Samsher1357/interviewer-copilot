@@ -1,3 +1,5 @@
+// Must be first import — intercepts console.log/warn/error and tees to file
+import { logRouter } from './utils/fileLogger';
 import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
@@ -38,6 +40,7 @@ async function startServer() {
     app.use('/api', logsRouter);
     app.use('/api', candidatesRouter);
     app.use('/api', resumeRouter);
+    app.use('/api', logRouter);
 
     const io = new Server(httpServer, {
       cors: {

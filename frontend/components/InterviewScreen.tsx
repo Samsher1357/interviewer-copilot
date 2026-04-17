@@ -19,6 +19,8 @@ export function InterviewScreen() {
     isAnalyzing,
     isGeneratingQuestions,
     isGeneratingRating,
+    pendingStageAdvance,
+    currentStage,
     setInterviewEndTime, // FIX: Add end time setter
     interviewStartTime,
     lastActivityTime,
@@ -40,6 +42,8 @@ export function InterviewScreen() {
     canStartAnalysis,
     endInterview,
     getCurrentState,
+    advanceStage,
+    dismissStageAdvance,
   } = useCopilotEngine();
 
   const [isMicActive, setIsMicActive] = useState(false);
@@ -366,6 +370,38 @@ export function InterviewScreen() {
           </div>
         </div>
       </div>
+
+      {/* Stage Advance Banner */}
+      {pendingStageAdvance && (
+        <div className="mx-4 mt-2 flex items-center justify-between px-4 py-2.5 bg-gradient-to-r from-purple-900/40 to-blue-900/40 border border-purple-500/30 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-purple-400" />
+            <span className="text-sm text-purple-200">
+              Ready to advance to <span className="font-semibold text-white">{
+                (() => {
+                  const stages = ['Intro', 'Basic', 'Core', 'Advanced', 'Behavioral'];
+                  const idx = stages.indexOf(currentStage);
+                  return idx < stages.length - 1 ? stages[idx + 1] : currentStage;
+                })()
+              }</span> stage
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={dismissStageAdvance}
+              className="px-3 py-1 text-xs text-gray-400 hover:text-gray-200 transition-colors"
+            >
+              Dismiss
+            </button>
+            <button
+              onClick={advanceStage}
+              className="px-3 py-1.5 bg-purple-600 text-white text-xs font-medium rounded-lg hover:bg-purple-500 transition-colors"
+            >
+              Advance Stage
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* AI Analysis Panels */}
       <div 
