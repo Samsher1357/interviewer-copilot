@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Turn, Utterance, InterviewContext, InterviewState, RatingData } from './types';
+import type { Turn, Utterance, InterviewContext, InterviewState, RatingData, InterviewStage, TopicProgress } from './types';
 
 // Batching mechanism for chunk updates to reduce re-renders
 let analysisBatchTimer: NodeJS.Timeout | null = null;
@@ -9,6 +9,8 @@ let ratingBatchTimer: NodeJS.Timeout | null = null;
 let analysisBatch = '';
 let questionsBatch = '';
 let ratingBatch = '';
+let nextQuestionBatchTimer: NodeJS.Timeout | null = null;
+let nextQuestionBatch = '';
 
 interface InterviewStore {
   // Interview state
@@ -33,6 +35,15 @@ interface InterviewStore {
   isGeneratingQuestions: boolean;
   isGeneratingRating: boolean;
   
+  // Next Question Co-Pilot
+  nextQuestionText: string;
+  isGeneratingNextQuestion: boolean;
+  currentStage: InterviewStage;
+  topicProgress: TopicProgress[];
+  questionsAsked: string[];
+  pendingStageAdvance: boolean;
+  lastAnswerScore: number | undefined;
+
   // Ratings
   ratings: RatingData[];
   coveredTopics: string[];
@@ -63,9 +74,17 @@ interface InterviewStore {
   clearAnalysis: () => void;
   clearQuestions: () => void;
   clearRating: () => void;
+  appendNextQuestionChunk: (chunk: string) => void;
+  clearNextQuestion: () => void;
   setIsAnalyzing: (analyzing: boolean) => void;
   setIsGeneratingQuestions: (generating: boolean) => void;
   setIsGeneratingRating: (generating: boolean) => void;
+  setIsGeneratingNextQuestion: (generating: boolean) => void;
+  setCurrentStage: (stage: InterviewStage) => void;
+  updateTopicProgress: (topic: string, score?: number) => void;
+  addQuestionAsked: (question: string) => void;
+  setPendingStageAdvance: (pending: boolean) => void;
+  setLastAnswerScore: (score: number | undefined) => void;
   addRating: (rating: RatingData) => void;
   addCoveredTopic: (topic: string) => void;
   setLanguage: (language: string) => void;
@@ -97,6 +116,13 @@ export const useInterviewStore = create<InterviewStore>()(
       isAnalyzing: false,
       isGeneratingQuestions: false,
       isGeneratingRating: false,
+      nextQuestionText: '',
+      isGeneratingNextQuestion: false,
+      currentStage: 'Intro' as InterviewStage,
+      topicProgress: [],
+      questionsAsked: [],
+      pendingStageAdvance: false,
+      lastAnswerScore: undefined,
       ratings: [],
       coveredTopics: [],
       language: 'en',
@@ -160,9 +186,52 @@ export const useInterviewStore = create<InterviewStore>()(
         if (ratingBatchTimer) clearTimeout(ratingBatchTimer);
         set({ ratingText: '' });
       },
+      appendNextQuestionChunk: (chunk) => {
+        nextQuestionBatch += chunk;
+        if (nextQuestionBatchTimer) clearTimeout(nextQuestionBatchTimer);
+        nextQuestionBatchTimer = setTimeout(() => {
+          const batch = nextQuestionBatch;
+          nextQuestionBatch = '';
+          set((state) => ({ nextQuestionText: state.nextQuestionText + batch }));
+        }, 50);
+      },
+      clearNextQuestion: () => {
+        nextQuestionBatch = '';
+        if (nextQuestionBatchTimer) clearTimeout(nextQuestionBatchTimer);
+        set({ nextQuestionText: '' });
+      },
       setIsAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
       setIsGeneratingQuestions: (generating) => set({ isGeneratingQuestions: generating }),
       setIsGeneratingRating: (generating) => set({ isGeneratingRating: generating }),
+      setIsGeneratingNextQuestion: (generating) => set({ isGeneratingNextQuestion: generating }),
+      setCurrentStage: (stage) => set({ currentStage: stage }),
+      updateTopicProgress: (topic, score) => set((state) => {
+        const existing = state.topicProgress.find(tp => tp.topic === topic);
+        if (existing) {
+          const updated = state.topicProgress.map(tp =>
+            tp.topic === topic
+              ? {
+                  ...tp,
+                  questionsAsked: tp.questionsAsked + 1,
+                  lastScore: score ?? tp.lastScore,
+                  depth: (tp.questionsAsked + 1 >= 3 ? 'deep' : tp.questionsAsked + 1 >= 2 ? 'moderate' : 'surface') as TopicProgress['depth'],
+                }
+              : tp
+          );
+          return { topicProgress: updated };
+        }
+        return {
+          topicProgress: [
+            ...state.topicProgress,
+            { topic, questionsAsked: 1, lastScore: score, depth: 'surface' as const },
+          ],
+        };
+      }),
+      addQuestionAsked: (question) => set((state) => ({
+        questionsAsked: [...state.questionsAsked, question],
+      })),
+      setPendingStageAdvance: (pending) => set({ pendingStageAdvance: pending }),
+      setLastAnswerScore: (score) => set({ lastAnswerScore: score }),
       addRating: (rating) => set((state) => ({ ratings: [...state.ratings, rating] })),
       addCoveredTopic: (topic) => set((state) => ({ 
         coveredTopics: state.coveredTopics.includes(topic) ? state.coveredTopics : [...state.coveredTopics, topic] 
@@ -213,6 +282,13 @@ export const useInterviewStore = create<InterviewStore>()(
         isAnalyzing: false,
         isGeneratingQuestions: false,
         isGeneratingRating: false,
+        nextQuestionText: '',
+        isGeneratingNextQuestion: false,
+        currentStage: 'Intro' as InterviewStage,
+        topicProgress: [],
+        questionsAsked: [],
+        pendingStageAdvance: false,
+        lastAnswerScore: undefined,
         ratings: [],
         coveredTopics: [],
         // Inactivity timer

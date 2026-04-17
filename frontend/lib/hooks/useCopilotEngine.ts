@@ -5,7 +5,8 @@ import { useSocketAnalysis } from './useSocketAnalysis';
 import { useUtteranceBuilder } from './useUtteranceBuilder';
 import { ConversationStateMachine } from '../ConversationStateMachine';
 import { classifyIntent, shouldAutoTrigger, ConversationState, CONFIDENCE_THRESHOLD, MIN_QUESTION_CONFIDENCE } from '../intentClassifier';
-import type { DeepgramResult, Utterance } from '../types';
+import type { DeepgramResult, Utterance, InterviewStage } from '../types';
+import { STAGE_QUOTAS, STAGE_ORDER } from '../types';
 import { logTranscriptEvent } from '../transcriptLogger';
 
 export function useCopilotEngine() {
@@ -27,9 +28,19 @@ export function useCopilotEngine() {
     isGeneratingQuestions,
     isGeneratingRating,
     updateLastActivity, // Add inactivity timer
+    analysisText,
+    currentStage,
+    topicProgress,
+    questionsAsked,
+    updateTopicProgress,
+    addQuestionAsked,
+    setCurrentStage,
+    setPendingStageAdvance,
+    setLastAnswerScore,
+    clearNextQuestion,
   } = useInterviewStore();
 
-  const { analyze, cancel, isConnected: socketConnected } = useSocketAnalysis();
+  const { analyze, requestNextQuestion, cancel, isConnected: socketConnected } = useSocketAnalysis();
 
   const fsmRef = useRef(new ConversationStateMachine());
   const hasStartedRef = useRef(false);
@@ -50,7 +61,7 @@ export function useCopilotEngine() {
   const TRIGGER_DEBOUNCE_MS = 5000;
   // Minimum time after a question is received before analysis can fire.
   // Prevents triggering on the first sentence of a multi-sentence answer.
-  const MIN_ANSWER_ACCUMULATION_MS = 10_000;
+  const MIN_ANSWER_ACCUMULATION_MS = 5_000;
   const MIN_WORDS = 8;
   
   const [fsmState, setFsmState] = useState(fsmRef.current.getState());
@@ -402,6 +413,66 @@ export function useCopilotEngine() {
     }
   }, [isAnalyzing, isGeneratingQuestions, isGeneratingRating]);
 
+  // ── Auto-trigger next-question generation after analysis completes ──
+  const prevAnalyzingRef = useRef(false);
+  useEffect(() => {
+    const wasAnalyzing = prevAnalyzingRef.current;
+    prevAnalyzingRef.current = isAnalyzing;
+
+    // Fire only on the transition isAnalyzing: true → false
+    if (wasAnalyzing && !isAnalyzing && analysisText && interviewContext && socketConnected) {
+      console.log('[Engine] Analysis completed — triggering next-question generation');
+
+      // 1. Parse score from analysisText (look for **Score: X/5**)
+      const scoreMatch = analysisText.match(/\*\*Score:\s*(\d(?:\.\d)?)\s*\/\s*5\*\*/);
+      const score = scoreMatch ? parseFloat(scoreMatch[1]) : undefined;
+      if (score !== undefined) {
+        setLastAnswerScore(score);
+        console.log(`[Engine] Parsed score: ${score}/5`);
+      }
+
+      // 2. Update topic progress for the current question's topic
+      const lastQuestion = questionRef.current || questionsAsked[questionsAsked.length - 1];
+      if (lastQuestion) {
+        // Use the first required skill as a rough topic (best-effort)
+        const topic = interviewContext.requiredSkills?.[0] || 'General';
+        updateTopicProgress(topic, score);
+        addQuestionAsked(lastQuestion);
+      }
+
+      // 3. Compute pending topics
+      const coveredTopicNames = topicProgress.map(tp => tp.topic);
+      const pendingTopics = (interviewContext.requiredSkills || []).filter(
+        skill => !coveredTopicNames.includes(skill)
+      );
+
+      // 4. Check stage advancement
+      const totalQ = questionsAsked.length + 1;
+      const quota = STAGE_QUOTAS[currentStage] || 999;
+      if (totalQ >= quota) {
+        const idx = STAGE_ORDER.indexOf(currentStage);
+        if (idx < STAGE_ORDER.length - 1) {
+          console.log(`[Engine] Stage quota reached (${totalQ}/${quota}), suggesting advance to ${STAGE_ORDER[idx + 1]}`);
+          setPendingStageAdvance(true);
+        }
+      }
+
+      // 5. Request next question from backend
+      requestNextQuestion(
+        interviewContext,
+        turns,
+        topicProgress,
+        pendingTopics,
+        questionsAsked,
+        analysisText.substring(0, 300),
+        score,
+        currentStage,
+        totalQ,
+        language
+      );
+    }
+  }, [isAnalyzing]);
+
   // Manual trigger
   const triggerAnalysis = useCallback(() => {
     const question = questionRef.current.trim();
@@ -488,6 +559,21 @@ export function useCopilotEngine() {
 
   const getCurrentState = useCallback(() => fsmState, [fsmState]);
 
+  // Stage advance / dismiss
+  const advanceStage = useCallback(() => {
+    const idx = STAGE_ORDER.indexOf(currentStage);
+    if (idx < STAGE_ORDER.length - 1) {
+      const next = STAGE_ORDER[idx + 1];
+      console.log(`[Engine] Advancing stage: ${currentStage} → ${next}`);
+      setCurrentStage(next);
+      setPendingStageAdvance(false);
+    }
+  }, [currentStage, setCurrentStage, setPendingStageAdvance]);
+
+  const dismissStageAdvance = useCallback(() => {
+    setPendingStageAdvance(false);
+  }, [setPendingStageAdvance]);
+
   return {
     isConnected: deepgram.isConnected,
     startMicrophone: deepgram.startMicrophone,
@@ -497,5 +583,7 @@ export function useCopilotEngine() {
     canStartAnalysis,
     endInterview,
     getCurrentState,
+    advanceStage,
+    dismissStageAdvance,
   };
 }
