@@ -5,6 +5,7 @@ import { useInterviewStore } from '@/lib/store';
 import { Save, Download, CheckCircle, ChevronDown, ChevronUp } from 'lucide-react';
 import EvaluationMatrixPanel from '@/components/EvaluationMatrixPanel';
 import FeedbackWidget from '@/components/FeedbackWidget';
+import SendEmailButton from '@/components/SendEmailButton';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 interface CompetencyRating {
@@ -341,7 +342,7 @@ function EvaluateContent() {
               Interview evaluation for {interviewContext.candidateName} has been saved.
             </p>
             
-            <div className="flex gap-4 justify-center">
+            <div className="flex gap-4 justify-center flex-wrap">
               <button
                 onClick={downloadPDF}
                 className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium shadow-lg shadow-blue-500/20"
@@ -349,6 +350,13 @@ function EvaluateContent() {
                 <Download size={20} />
                 Download PDF Report
               </button>
+              {sessionId && (
+                <SendEmailButton 
+                  sessionId={sessionId} 
+                  candidateName={interviewContext.candidateName}
+                  candidateEmail={interviewContext.candidateEmail}
+                />
+              )}
               <button
                 onClick={() => window.location.href = '/dashboard'}
                 className="px-6 py-3 bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-medium"
