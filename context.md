@@ -36,9 +36,31 @@ AI-powered interview copilot that assists interviewers with real-time transcript
   - Blue-highlighted section showing all preset questions when template is selected
 - **DB migration applied** via `npx prisma db push` ✅
 
+### 3. Samsher's Merged Features (from PR #2 → developer → main)
+- **Resume Upload** — drag & drop PDF/TXT on setup screen, parsed via `POST /api/resume/parse`
+- **Past Interview Detection** — enter email/phone → warns if candidate interviewed in last 6 months (`GET /api/candidates/lookup`)
+- **Phone field** — `candidatePhone` added to setup form (now required in validation)
+- **Winston logging** — structured logging via `backend/src/utils/logger.ts` (install: `npm install winston`)
+- **Candidate routes** — `backend/src/routes/candidates.ts`
+- **Log routes** — `backend/src/routes/logs.ts`
+- **File logger** — `frontend/lib/fileLogger.ts`, `backend/src/utils/fileLogger.ts`
+- **QuestionPanel** — enhanced with new features
+- **Intent classifier** — improved `frontend/lib/intentClassifier.ts`
+
+## DB Notes
+- SQLite file: `backend/prisma/dev.db`
+- **`candidateEmail` and `candidatePhone` are optional (`String?`)** — prevents `--force-reset` if schema changes with existing data
+- Seed script: `npx tsx src/scripts/seed.ts` (run from `/backend`) — creates 8 sessions, 5 templates, 6 notes, 9 feedback entries
+- After any schema change: `npx prisma db push` (no `--force-reset` needed now)
+
 ## Known Issues
 - OpenAI API key may timeout — app supports Google Gemini as fallback (change model in `interviewerSocketHandler.ts`)
 - PDF service is untouched — original generation logic preserved
+- SendGrid email requires verified sender: set `SENDER_EMAIL` in backend `.env` and verify at SendGrid → Settings → Sender Authentication
+
+## Git State
+- **main** branch is latest (PR #3 merged: developer → main, Apr 17 2026)
+- `candidateEmail`/`candidatePhone` schema fix (made optional) is local only — needs to be committed and pushed
 
 ## Environment Variables (backend/.env)
 ```
