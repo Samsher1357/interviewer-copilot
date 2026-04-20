@@ -38,6 +38,7 @@ export function useCopilotEngine() {
     setPendingStageAdvance,
     setLastAnswerScore,
     clearNextQuestion,
+    setIsGeneratingNextQuestion,
   } = useInterviewStore();
 
   const { analyze, requestNextQuestion, cancel, isConnected: socketConnected } = useSocketAnalysis();
@@ -128,6 +129,10 @@ export function useCopilotEngine() {
     console.log('  Q:', question.substring(0, 60));
     console.log('  A:', answer.substring(0, 60), `(${wordCount} words, conf: ${avgConfidence.toFixed(2)})`);
 
+    // Show "Generating next question..." placeholder immediately
+    clearNextQuestion();
+    setIsGeneratingNextQuestion(true);
+
     logTranscriptEvent({
       event: 'ANALYSIS_TRIGGERED',
       meta: {
@@ -162,6 +167,26 @@ export function useCopilotEngine() {
     const updatedTurns = [...turns, questionTurn, answerTurn];
     analyze(question, answer, updatedTurns, interviewContext, coveredTopics, language);
 
+    // Fire next-question generation in PARALLEL with analysis
+    const coveredTopicNames = topicProgress.map(tp => tp.topic);
+    const pendingTopics = (interviewContext.requiredSkills || []).filter(
+      skill => !coveredTopicNames.includes(skill)
+    );
+    const totalQ = questionsAsked.length + 1;
+    addQuestionAsked(question);
+    requestNextQuestion(
+      interviewContext,
+      updatedTurns,
+      topicProgress,
+      pendingTopics,
+      questionsAsked,
+      answer.substring(0, 300),
+      undefined,
+      currentStage,
+      totalQ,
+      language
+    );
+
     fsmRef.current.dispatch('ANALYZE');
     setFsmState(fsmRef.current.getState());
 
@@ -176,7 +201,7 @@ export function useCopilotEngine() {
     confidenceSamplesRef.current = [];
 
     return true;
-  }, [interviewContext, turns, language, coveredTopics, analyze, isAnalyzing, isGeneratingQuestions, isGeneratingRating, socketConnected, addTurn, setCurrentQuestion, setCurrentAnswer, getAvgConfidence]);
+  }, [interviewContext, turns, language, coveredTopics, analyze, isAnalyzing, isGeneratingQuestions, isGeneratingRating, socketConnected, addTurn, setCurrentQuestion, setCurrentAnswer, getAvgConfidence, requestNextQuestion, topicProgress, questionsAsked, currentStage, addQuestionAsked]);
 
   useEffect(() => {
     triggerRef.current = triggerAnalysisInternal;
@@ -413,15 +438,15 @@ export function useCopilotEngine() {
     }
   }, [isAnalyzing, isGeneratingQuestions, isGeneratingRating]);
 
-  // ── Auto-trigger next-question generation after analysis completes ──
+  // ── Post-analysis: parse score, update topic progress, check stage advancement ──
   const prevAnalyzingRef = useRef(false);
   useEffect(() => {
     const wasAnalyzing = prevAnalyzingRef.current;
     prevAnalyzingRef.current = isAnalyzing;
 
     // Fire only on the transition isAnalyzing: true → false
-    if (wasAnalyzing && !isAnalyzing && analysisText && interviewContext && socketConnected) {
-      console.log('[Engine] Analysis completed — triggering next-question generation');
+    if (wasAnalyzing && !isAnalyzing && analysisText && interviewContext) {
+      console.log('[Engine] Analysis completed — updating topic progress & stage');
 
       // 1. Parse score from analysisText (look for **Score: X/5**)
       const scoreMatch = analysisText.match(/\*\*Score:\s*(\d(?:\.\d)?)\s*\/\s*5\*\*/);
@@ -432,22 +457,14 @@ export function useCopilotEngine() {
       }
 
       // 2. Update topic progress for the current question's topic
-      const lastQuestion = questionRef.current || questionsAsked[questionsAsked.length - 1];
+      const lastQuestion = questionsAsked[questionsAsked.length - 1];
       if (lastQuestion) {
-        // Use the first required skill as a rough topic (best-effort)
         const topic = interviewContext.requiredSkills?.[0] || 'General';
         updateTopicProgress(topic, score);
-        addQuestionAsked(lastQuestion);
       }
 
-      // 3. Compute pending topics
-      const coveredTopicNames = topicProgress.map(tp => tp.topic);
-      const pendingTopics = (interviewContext.requiredSkills || []).filter(
-        skill => !coveredTopicNames.includes(skill)
-      );
-
-      // 4. Check stage advancement
-      const totalQ = questionsAsked.length + 1;
+      // 3. Check stage advancement
+      const totalQ = questionsAsked.length;
       const quota = STAGE_QUOTAS[currentStage] || 999;
       if (totalQ >= quota) {
         const idx = STAGE_ORDER.indexOf(currentStage);
@@ -456,20 +473,6 @@ export function useCopilotEngine() {
           setPendingStageAdvance(true);
         }
       }
-
-      // 5. Request next question from backend
-      requestNextQuestion(
-        interviewContext,
-        turns,
-        topicProgress,
-        pendingTopics,
-        questionsAsked,
-        analysisText.substring(0, 300),
-        score,
-        currentStage,
-        totalQ,
-        language
-      );
     }
   }, [isAnalyzing]);
 
@@ -487,6 +490,10 @@ export function useCopilotEngine() {
     }
 
     lastTriggerTimeRef.current = Date.now();
+
+    // Show "Generating next question..." placeholder immediately
+    clearNextQuestion();
+    setIsGeneratingNextQuestion(true);
 
     const questionTurn = {
       id: `q-${Date.now()}`,
@@ -509,6 +516,26 @@ export function useCopilotEngine() {
     const updatedTurns = [...turns, questionTurn, answerTurn];
     analyze(question, answer, updatedTurns, interviewContext, coveredTopics, language);
 
+    // Fire next-question generation in PARALLEL with analysis
+    const coveredTopicNames = topicProgress.map(tp => tp.topic);
+    const pendingTopics = (interviewContext.requiredSkills || []).filter(
+      skill => !coveredTopicNames.includes(skill)
+    );
+    const totalQ = questionsAsked.length + 1;
+    addQuestionAsked(question);
+    requestNextQuestion(
+      interviewContext,
+      updatedTurns,
+      topicProgress,
+      pendingTopics,
+      questionsAsked,
+      answer.substring(0, 300),
+      undefined,
+      currentStage,
+      totalQ,
+      language
+    );
+
     fsmRef.current.dispatch('ANALYZE');
     setFsmState(fsmRef.current.getState());
 
@@ -518,7 +545,7 @@ export function useCopilotEngine() {
     utteranceEndCountRef.current = 0;
 
     return true;
-  }, [interviewContext, turns, language, coveredTopics, analyze, isAnalyzing, isGeneratingQuestions, isGeneratingRating, socketConnected, addTurn, setCurrentAnswer]);
+  }, [interviewContext, turns, language, coveredTopics, analyze, isAnalyzing, isGeneratingQuestions, isGeneratingRating, socketConnected, addTurn, setCurrentAnswer, clearNextQuestion, setIsGeneratingNextQuestion, requestNextQuestion, topicProgress, questionsAsked, currentStage, addQuestionAsked]);
 
   const clearAnswer = useCallback(() => {
     answerRef.current = '';
