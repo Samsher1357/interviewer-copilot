@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useInterviewStore } from '@/lib/store';
 import { useCopilotEngine } from '@/lib/hooks/useCopilotEngine';
 import { useSocketAnalysis } from '@/lib/hooks/useSocketAnalysis';
@@ -11,6 +12,7 @@ import NotesPanel from './NotesPanel';
 import { Mic, MicOff, Square, Zap, Radio, Wifi, WifiOff, User, Briefcase, X, MessageSquare, AudioLines, Clock, AlertTriangle } from 'lucide-react';
 
 export function InterviewScreen() {
+  const router = useRouter();
   const {
     interviewContext,
     currentQuestion,
@@ -29,12 +31,14 @@ export function InterviewScreen() {
     updateLastActivity,
     checkInactivity,
     clearInactivityTimer,
+    language,
   } = useInterviewStore();
 
   const { isConnected: socketConnected } = useSocketAnalysis();
 
   const {
     isConnected: deepgramConnected,
+    connect: connectDeepgram,
     startMicrophone,
     stopMicrophone,
     triggerAnalysis,
@@ -132,12 +136,30 @@ export function InterviewScreen() {
 
   const handleToggleMic = async () => {
     updateActivity(); // Update activity on mic toggle
+    
     if (isMicActive) {
+      // Stop recording
       stopMicrophone();
       setIsMicActive(false);
     } else {
-      await startMicrophone();
-      setIsMicActive(true);
+      // Start recording
+      try {
+        // Ensure Deepgram is connected first
+        if (!deepgramConnected) {
+          console.log('[InterviewScreen] Deepgram not connected, connecting now...');
+          await connectDeepgram(language);
+          // Wait a bit for connection to establish
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
+        // Start microphone
+        await startMicrophone();
+        setIsMicActive(true);
+      } catch (error) {
+        console.error('[InterviewScreen] Failed to start microphone:', error);
+        setIsMicActive(false);
+        alert('Failed to start microphone. Please check your microphone permissions and try again.');
+      }
     }
   };
 
@@ -152,10 +174,10 @@ export function InterviewScreen() {
     setIsMicActive(false);
     setShowEndConfirm(false);
     clearInactivityTimer(); // Clear inactivity timer
-    // FIX: Set interview end time
+    // Set interview end time
     setInterviewEndTime(Date.now());
-    // Navigate to evaluation page
-    window.location.href = '/evaluate';
+    // Navigate to evaluation page using Next.js router (avoids full page reload)
+    router.push('/evaluate');
   };
 
   const isAnalyzingAny = isAnalyzing || isGeneratingQuestions || isGeneratingRating;

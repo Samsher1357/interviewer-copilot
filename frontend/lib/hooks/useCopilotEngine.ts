@@ -603,6 +603,7 @@ export function useCopilotEngine() {
 
   return {
     isConnected: deepgram.isConnected,
+    connect: deepgram.connect,
     startMicrophone: deepgram.startMicrophone,
     stopMicrophone: deepgram.stopMicrophone,
     triggerAnalysis,
