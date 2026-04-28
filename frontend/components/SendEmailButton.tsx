@@ -12,7 +12,7 @@ interface SendEmailButtonProps {
 
 export default function SendEmailButton({ sessionId, candidateName, candidateEmail, compact = false }: SendEmailButtonProps) {
   const [showModal, setShowModal] = useState(false);
-  const [email, setEmail] = useState(candidateEmail || '');
+  const [email, setEmail] = useState('');
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string } | null>(null);
 
@@ -29,7 +29,7 @@ export default function SendEmailButton({ sessionId, candidateName, candidateEma
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/sessions/${sessionId}/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), name: candidateName })
+        body: JSON.stringify({ email: email.trim() })
       });
 
       const data = await res.json();
@@ -75,7 +75,7 @@ export default function SendEmailButton({ sessionId, candidateName, candidateEma
               </div>
 
               <p className="text-gray-400 text-sm mb-4">
-                Send the interview feedback report to <span className="text-white font-medium">{candidateName}</span>
+                Send the interview feedback report for <span className="text-white font-medium">{candidateName}</span>
               </p>
 
               <div className="mb-4">
@@ -86,7 +86,7 @@ export default function SendEmailButton({ sessionId, candidateName, candidateEma
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="candidate@example.com"
+                  placeholder="recipient@example.com"
                   className="w-full px-4 py-3 bg-gray-900 border border-gray-600 text-white placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                   disabled={sending}
                 />
@@ -155,7 +155,7 @@ export default function SendEmailButton({ sessionId, candidateName, candidateEma
             </div>
 
             <p className="text-gray-400 text-sm mb-4">
-              Send the interview feedback report to <span className="text-white font-medium">{candidateName}</span>
+              Send the interview feedback report for <span className="text-white font-medium">{candidateName}</span>
             </p>
 
             <div className="mb-4">
@@ -166,7 +166,7 @@ export default function SendEmailButton({ sessionId, candidateName, candidateEma
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="candidate@example.com"
+                placeholder="recipient@example.com"
                 className="w-full px-4 py-3 bg-gray-900 border border-gray-600 text-white placeholder-gray-500 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
                 disabled={sending}
               />
